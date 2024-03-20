@@ -1,43 +1,40 @@
-As a line manager, when setting measurable objectives for a software architect, it's essential to focus on outcomes that demonstrate the architect's impact on the organization's software development processes and systems. Here are some examples of measurable objectives for a software architect:
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-1. Reduce system downtime by X% through the implementation of architectural improvements aimed at enhancing system stability and reliability.
+@Service
+public class OpenTextAuthenticationService {
 
-2. Increase code quality metrics (such as code coverage, maintainability index, and cyclomatic complexity) by X% by implementing architectural best practices and conducting code reviews.
+    @Value("${opentext.username}")
+    private String username;
 
-3. Improve system performance by optimizing database queries, implementing caching strategies, and refactoring inefficient code, resulting in a Y% reduction in response times.
+    @Value("${opentext.password}")
+    private String password;
 
-4. Enhance scalability and flexibility of systems by designing and implementing microservices architecture, resulting in a Z% increase in system capacity to handle concurrent users.
+    @Value("${opentext.contentServerUrl}")
+    private String contentServerUrl;
 
-5. Achieve compliance with industry standards and regulations (such as GDPR, HIPAA, or PCI DSS) by conducting architectural reviews and implementing necessary changes, resulting in a successful audit with no major findings.
+    public String authenticate() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/x-www-form-urlencoded");
 
-6. Lead the adoption of new technologies or frameworks (such as cloud computing, containerization, or serverless architecture) by conducting research, evaluating feasibility, and implementing pilot projects, resulting in X% of applications migrated to the new technology stack.
+        // Construct the request body with credentials
+        String requestBody = "Username=" + username + "&Password=" + password;
+        HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
-7. Mentor and train development teams on architectural best practices, resulting in an increase in the average competency level of team members by X% as measured by skill assessments or certification exams.
+        // Make a POST request to obtain the session ticket
+        ResponseEntity<String> response = new RestTemplate().exchange(
+                contentServerUrl + "/api/v1/authentication", HttpMethod.POST, request, String.class);
 
-8. Reduce technical debt by implementing a strategy for identifying, prioritizing, and addressing architectural weaknesses and legacy code, resulting in a Y% decrease in the number of high-risk components or modules.
-
-9. Improve collaboration and communication between development teams and stakeholders by implementing architectural documentation standards, conducting regular architecture reviews, and facilitating cross-functional workshops, resulting in a Z% increase in customer satisfaction scores.
-
-10. Lead the delivery of architectural projects within budget and timeline constraints, achieving an on-time delivery rate of X% and a budget variance of less than Y%.
-
-When setting these objectives, it's crucial to ensure that they are specific, measurable, achievable, relevant, and time-bound (SMART). Additionally, regular progress reviews and feedback sessions should be conducted to monitor the architect's performance against these objectives and make adjustments as necessary.
-
-
-
-Documenting technical debt in the Software Architect's document is a valuable practice to ensure visibility, transparency, and accountability for addressing architectural weaknesses and legacy issues within the software systems. Here's how you can incorporate documentation of technical debt into the architect's responsibilities:
-
-1. **Identify and Assess Technical Debt:** The software architect should conduct regular assessments and reviews of the existing codebase and architecture to identify areas of technical debt. This includes reviewing code quality, system performance, scalability, security vulnerabilities, and adherence to architectural principles.
-
-2. **Document Technical Debt Items:** Once technical debt items are identified, they should be documented in a centralized repository or document, along with relevant details such as the nature of the debt, the impact on the system, the root cause, and potential solutions or mitigation strategies. This documentation helps prioritize and track technical debt over time.
-
-3. **Categorize Technical Debt:** Technical debt can manifest in various forms, including code smells, architectural flaws, outdated technologies, and lack of documentation. The architect should categorize technical debt items based on their severity, criticality, and urgency for resolution to prioritize them effectively.
-
-4. **Estimate Effort and Impact:** For each technical debt item, the architect should estimate the effort required to address it and assess the potential impact on system stability, performance, security, and maintainability. This information helps stakeholders understand the trade-offs involved in addressing technical debt versus implementing new features.
-
-5. **Define a Remediation Plan:** Based on the assessment, the architect should define a remediation plan for addressing technical debt, including specific action items, timelines, and resource requirements. This plan should align with the organization's priorities and strategic objectives.
-
-6. **Track Progress and Monitor Trends:** The architect should regularly review and update the technical debt documentation to track progress in resolving debt items and monitor trends over time. This helps demonstrate progress to stakeholders and ensures ongoing visibility into the state of technical debt.
-
-7. **Communicate and Collaborate:** Effective communication and collaboration are essential for addressing technical debt. The architect should engage with development teams, product owners, and other stakeholders to raise awareness of technical debt, solicit input on prioritization, and gain support for remediation efforts.
-
-By documenting technical debt in the Software Architect's document and integrating it into the overall architecture governance process, organizations can proactively manage technical debt and make informed decisions to improve the long-term health and sustainability of their software systems.
+        // Extract the session ticket from the response headers
+        String ticket = response.getHeaders().getFirst("Set-Cookie");
+        if (ticket != null && ticket.startsWith("OTAuthSessionId")) {
+            // Extract the ticket value from the Set-Cookie header
+            ticket = ticket.split(";")[0].split("=")[1];
+            return ticket;
+        } else {
+            return null;
+        }
+    }
+}
