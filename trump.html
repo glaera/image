@@ -1,7 +1,11 @@
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class OpenTextAuthenticationService {
@@ -15,26 +19,30 @@ public class OpenTextAuthenticationService {
     @Value("${opentext.contentServerUrl}")
     private String contentServerUrl;
 
+    @Autowired
+    private RestTemplate restTemplate;
+
     public String authenticate() {
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Content-Type", "application/x-www-form-urlencoded");
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
         // Construct the request body with credentials
-        String requestBody = "Username=" + username + "&Password=" + password;
+        String requestBody = "{\"Username\":\"" + username + "\",\"Password\":\"" + password + "\"}";
         HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
         // Make a POST request to obtain the session ticket
-        ResponseEntity<String> response = new RestTemplate().exchange(
+        ResponseEntity<String> response = restTemplate.exchange(
                 contentServerUrl + "/api/v1/authentication", HttpMethod.POST, request, String.class);
 
-        // Extract the session ticket from the response headers
-        String ticket = response.getHeaders().getFirst("Set-Cookie");
-        if (ticket != null && ticket.startsWith("OTAuthSessionId")) {
-            // Extract the ticket value from the Set-Cookie header
-            ticket = ticket.split(";")[0].split("=")[1];
-            return ticket;
-        } else {
-            return null;
+        // Extract the session ticket from the JSON response
+        String responseBody = response.getBody();
+        if (response.getStatusCode().is2xxSuccessful() && responseBody != null) {
+            Pattern pattern = Pattern.compile("\"Ticket\":\"(\\w+)\"");
+            Matcher matcher = pattern.matcher(responseBody);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
         }
+        return null;
     }
 }
