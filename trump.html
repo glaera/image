@@ -1,135 +1,20 @@
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+-- Step 1: Create the function
+CREATE OR REPLACE FUNCTION update_latest_snapshot() RETURNS TRIGGER AS $$
+BEGIN
+    -- Update all other rows with the same snapshot_id to set latest to false
+    UPDATE snapshot
+    SET latest = FALSE
+    WHERE snapshot_id = NEW.snapshot_id AND ID <> NEW.ID;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+    -- Ensure the new row has latest set to true
+    NEW.latest = TRUE;
 
-@Service
-public class OpenTextAuthenticationService {
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-    @Value("${opentext.username}")
-    private String username;
-
-    @Value("${opentext.password}")
-    private String password;
-
-    @Value("${opentext.contentServerUrl}")
-    private String contentServerUrl;
-
-    @Autowired
-    private RestTemplate restTemplate;
-
-    public String authenticate() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        // Construct the request body with credentials
-        String requestBody = "{\"Username\":\"" + username + "\",\"Password\":\"" + password + "\"}";
-        HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
-
-        // Make a POST request to obtain the session ticket
-        ResponseEntity<String> response = restTemplate.exchange(
-                contentServerUrl + "/api/v1/authentication", HttpMethod.POST, request, String.class);
-
-        // Extract the session ticket from the JSON response
-        String responseBody = response.getBody();
-        if (response.getStatusCode().is2xxSuccessful() && responseBody != null) {
-            Pattern pattern = Pattern.compile("\"Ticket\":\"(\\w+)\"");
-            Matcher matcher = pattern.matcher(responseBody);
-            if (matcher.find()) {
-                return matcher.group(1);
-            }
-        }
-        return null;
-    }
-}
-
-
-
-
-            import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.web.server.LocalServerPort;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
-
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-public class OpenTextAuthenticationServiceIntegrationTest {
-
-    @LocalServerPort
-    private int port;
-
-    @Autowired
-    private RestTemplate restTemplate;
-
-    @Autowired
-    private OpenTextAuthenticationService authenticationService;
-
-    @Test
-    public void testAuthenticate_Success() {
-        // Setting up credentials and server URL
-        authenticationService.setUsername("test_username");
-        authenticationService.setPassword("test_password");
-        authenticationService.setContentServerUrl("http://localhost:" + port);
-
-        // Calling the authenticate method
-        String ticket = authenticationService.authenticate();
-
-        // Asserting that the ticket is not null
-        assertNotNull(ticket);
-    }
-}
-
-
-
-            import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.springframework.http.*;
-import org.springframework.web.client.RestTemplate;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.junit.jupiter.api.extension.ExtendWith;
-
-@ExtendWith(MockitoExtension.class)
-public class OpenTextAuthenticationServiceUnitTest {
-
-    @Mock
-    private RestTemplate restTemplate;
-
-    @InjectMocks
-    private OpenTextAuthenticationService authenticationService;
-
-    @Test
-    public void testAuthenticate_Success() {
-        // Mocking the response from the OpenText server
-        String jsonResponse = "{\"Ticket\":\"test_ticket\"}";
-        ResponseEntity<String> mockResponse = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-
-        // Setting up the mock restTemplate behavior
-        when(restTemplate.exchange(any(String.class), any(HttpMethod.class), any(HttpEntity.class), 
-                                   any(Class.class)))
-                .thenReturn(mockResponse);
-
-        // Setting up credentials and server URL
-        authenticationService.setUsername("test_username");
-        authenticationService.setPassword("test_password");
-        authenticationService.setContentServerUrl("http://example.com");
-
-        // Calling the authenticate method
-        String ticket = authenticationService.authenticate();
-
-        // Asserting that the ticket is extracted correctly
-        assertEquals("test_ticket", ticket);
-    }
-}
+-- Step 2: Create the trigger
+CREATE TRIGGER set_latest_snapshot
+BEFORE INSERT ON snapshot
+FOR EACH ROW
+EXECUTE FUNCTION update_latest_snapshot();
