@@ -1,20 +1,36 @@
--- Step 1: Create the function
-CREATE OR REPLACE FUNCTION update_latest_snapshot() RETURNS TRIGGER AS $$
-BEGIN
-    -- Update all other rows with the same snapshot_id to set latest to false
-    UPDATE snapshot
-    SET latest = FALSE
-    WHERE snapshot_id = NEW.snapshot_id AND ID <> NEW.ID;
+const url = 'https://example.com/api/your-zip-file-endpoint';
 
-    -- Ensure the new row has latest set to true
-    NEW.latest = TRUE;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Step 2: Create the trigger
-CREATE TRIGGER set_latest_snapshot
-BEFORE INSERT ON snapshot
-FOR EACH ROW
-EXECUTE FUNCTION update_latest_snapshot();
+// Call the REST service
+fetch(url, {
+    method: 'GET',
+    headers: {
+        'Content-Type': 'application/zip',  // Ensure the content type is set to handle ZIP files
+    }
+})
+.then(response => {
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.blob();  // Convert the response to a Blob
+})
+.then(blob => {
+    // Create a link element
+    const a = document.createElement('a');
+    // Create an object URL for the Blob
+    const url = window.URL.createObjectURL(blob);
+    // Set the link's href to the object URL
+    a.href = url;
+    // Set the download attribute to the desired file name
+    a.download = 'file.zip';
+    // Append the link to the body
+    document.body.appendChild(a);
+    // Programmatically click the link to trigger the download
+    a.click();
+    // Remove the link from the document
+    document.body.removeChild(a);
+    // Revoke the object URL to free up memory
+    window.URL.revokeObjectURL(url);
+})
+.catch(error => {
+    console.error('There was an error!', error);
+});
