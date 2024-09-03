@@ -1,157 +1,20 @@
-<!DOCTYPE html>
-<html>
-<body>
+CREATE OR REPLACE FUNCTION update_archive_status() 
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Update the 'archive' column to true for existing rows with the same 'record_id'
+    UPDATE your_table_name
+    SET archive = TRUE
+    WHERE record_id = NEW.record_id
+      AND archive = FALSE;
 
-<p>Image to use:</p>
-<img id="scream" width="401" height="595" src="file:///Users/t335665/Desktop/monalisa.jpg" alt="The Scream">
-
-
-
-<select id="focalPoint">
-  <option value="center">center</option>
-  <option value="top">top</option>
-  <option value="bottom">bottom</option>
-  <option value="right">right</option>
-  <option value="left">left</option>
-  
-</select>
-<canvas id="myCanvas" width="401" height="595" style="border:1px solid #d3d3d3;">
-Your browser does not support the HTML5 canvas tag.
-</canvas>
-
-<script>
-
-var imageDimensions;
-var minDim;
-
-
-function drawFormats(e) {
- var value =   e.target.options[e.target.selectedIndex].value;
- prepareImage();
-drawSquare(value);
-draw16x9(value);
-draw4x3(value);
-
-}
-
-
-
-
-function prepareImage() {
-console.log('prepare image');
-  var c = document.getElementById("myCanvas");
- 
-  imageDimensions = new Object();
-  imageDimensions.height = c.height;
-  imageDimensions.width = c.width;
-  
-  
-  
-  var ctx = c.getContext("2d");
-  var img = document.getElementById("scream");
-  ctx.drawImage(img, 0, 0,401,595);
-}
-
-function disegna(format) {
-  var c = document.getElementById("myCanvas");
-  var ctx = c.getContext("2d");
-  ctx.beginPath();
-	ctx.rect(format.x, format.y, format.width, format.height);
-    ctx.lineWidth = format.lineWidth;
-    ctx.strokeStyle = format.color;
-	ctx.stroke();
-}
-
-window.onload = function() {
-  prepareImage();
-  
-  document.getElementById("focalPoint").onchange =  drawFormats;
-  minDim = getMinimumDimension();
- 
-}
-
-function getMinimumDimension() {
-	return Math.min(imageDimensions.height, imageDimensions.width)
-}
-
-function adaptY(focalPoint,height,maxHeight) {
-	if (focalPoint ==='top')
-    	return 0;
-  if (focalPoint == 'center')
-  	return (maxHeight - height)/2
-  
-  if (focalPoint == 'bottom') 
-    return (maxHeight - height)  
-  return (maxHeight - height)-(maxHeight - height)/2;
-        
-}
-
-function adaptX(focalPoint,width,maxWidth) {
-	if (focalPoint ==='left')
-    	return 0;
-  if (focalPoint == 'center')
-    	return (maxWidth - width)/2
-    
-  if (focalPoint == 'right')
-    	return (maxWidth - width)  
-  return (maxWidth - width)-(maxWidth - width)/2;
-        
-}
-
-function drawSquare(focalPoint) {
-	var sample = new Object();
-    sample.x=adaptX(focalPoint,minDim,imageDimensions.width);
-    sample.y=adaptY(focalPoint,minDim,imageDimensions.height);
-    sample.width=minDim;sample.height=minDim;sample.lineWidth = 5; sample.color = "red";
-	disegna(sample)
-   
-	
-}
-function draw16x9(focalPoint) {
-	 
-var sample = new Object();
-	var width = imageDimensions.width;
-    
-    if (imageDimensions.width/16*9<=imageDimensions.height) {
-      console.log('this case')
-    	sample.x=adaptX(focalPoint,imageDimensions.width,imageDimensions.width);
-    	sample.y=adaptY(focalPoint,imageDimensions.width/16*9,imageDimensions.height);
-    	sample.width=imageDimensions.width;
-        sample.height=imageDimensions.width/16*9;sample.lineWidth = 4; 	
-        console.log('al 16x9 rect is ',sample.x,sample.y,sample.with,sample.height);
-        sample.color = "black";
-	      disegna(sample)
-    } else {
-      sample.x=adaptX(focalPoint,imageDimensions.height/9*16,imageDimensions.width);
-    	sample.y=adaptY(focalPoint,imageDimensions.height,imageDimensions.height);
-    	sample.width=imageDimensions.height/9*16;
-      sample.height=imageDimensions.height;sample.lineWidth = 4; 	
-      sample.color = "black";
-    	disegna(sample)
-    }
-
-}
-function draw4x3(focalPoint) {
-
-	var sample = new Object();
-	var width = imageDimensions.width;
-    if (imageDimensions.width/4*3<=imageDimensions.height) {
-    	sample.x=adaptX(focalPoint,imageDimensions.width,imageDimensions.width);
-    	sample.y=adaptY(focalPoint,imageDimensions.width/4*3,imageDimensions.height);
-    	sample.width=imageDimensions.width;
-      sample.height=imageDimensions.width/4*3;sample.lineWidth = 3; 			sample.color = "yellow";
-	    disegna(sample)
-    } else {
-      sample.x=adaptX(focalPoint,imageDimensions.height/3*4,imageDimensions.width);
-    	sample.y=adaptY(focalPoint,imageDimensions.height,imageDimensions.height);
-    	sample.width=imageDimensions.height/3*4;
-      sample.height=imageDimensions.height;sample.lineWidth = 3; 	
-      sample.color = "yellow";
-    	disegna(sample)
-    }
-}
-
-</script>
-
-</body>
-</html>
+    -- Return the new row
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+Create the Trigger:
+sql
+Copy code
+CREATE TRIGGER set_archive_on_insert
+AFTER INSERT ON your_table_name
+FOR EACH ROW
+EXECUTE FUNCTION update_archive_status();
